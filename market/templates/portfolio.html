@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}My Portfolio - MarketMind AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4 align-items-center">
+    <div class="col-md-6">
+        <h2 class="fw-bold mb-1"><i class="bi bi-wallet2 text-primary"></i> Investment Portfolio</h2>
+        <p class="text-secondary">Track holdings, cost bases, real-time returns, and aggregate portfolio sentiments.</p>
+    </div>
+    <div class="col-md-6 text-md-end">
+        <!-- Button trigger modal -->
+        <button type="button" class="btn search-btn rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addHoldingModal">
+            <i class="bi bi-plus-circle-fill me-2"></i> Add Asset
+        </button>
+    </div>
+</div>
+
+<!-- Portfolio Performance Metrics Grid -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card p-4">
+            <div class="text-secondary small fw-semibold text-uppercase mb-1">TOTAL INVESTED</div>
+            <h3 class="fw-bold text-light">₹{{ total_invested|floatformat:2 }}</h3>
+            <span class="text-muted small">Principal cost basis</span>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card p-4">
+            <div class="text-secondary small fw-semibold text-uppercase mb-1">CURRENT VALUE</div>
+            <h3 class="fw-bold text-light">₹{{ total_current|floatformat:2 }}</h3>
+            <span class="text-muted small">Real-time asset value</span>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card p-4">
+            <div class="text-secondary small fw-semibold text-uppercase mb-1">TOTAL P&L</div>
+            <h3 class="fw-bold {% if total_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ₹{{ total_gain_loss|floatformat:2 }}
+            </h3>
+            <span class="small {% if total_gain_loss >= 0 %}text-success{% else %}text-danger{% endif %} fw-semibold">
+                {% if total_gain_loss >= 0 %}+{% endif %}{{ total_gain_loss_pct|floatformat:2 }}%
+            </span>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="glass-card p-4">
+            <div class="text-secondary small fw-semibold text-uppercase mb-1">PORTFOLIO SENTIMENT</div>
+            <h3 class="fw-bold {% if portfolio_sentiment >= 0.2 %}text-success{% elif portfolio_sentiment <= -0.2 %}text-danger{% else %}text-warning{% endif %}">
+                {{ portfolio_sentiment|stringformat:".2f" }}
+            </h3>
+            <span class="badge {% if portfolio_outlook == 'BULLISH' %}bg-success{% elif portfolio_outlook == 'BEARISH' %}bg-danger{% else %}bg-warning{% endif %} bg-opacity-25 {% if portfolio_outlook == 'BULLISH' %}text-success{% elif portfolio_outlook == 'BEARISH' %}text-danger{% else %}text-warning{% endif %} px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+                {{ portfolio_outlook }} OUTLOOK
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Holdings Breakdown -->
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <h4 class="fw-bold mb-4"><i class="bi bi-list-task text-primary me-2"></i> Current Holdings</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-0 mb-0">
+                    <thead>
+                        <tr class="text-muted" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th class="pb-3">Asset Ticker</th>
+                            <th class="pb-3 text-end">Shares Held</th>
+                            <th class="pb-3 text-end">Avg Buy Price</th>
+                            <th class="pb-3 text-end">Current Price</th>
+                            <th class="pb-3 text-end">Current Value</th>
+                            <th class="pb-3 text-end">Profit & Loss</th>
+                            <th class="pb-3 text-center">AI Signal</th>
+                            <th class="pb-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if holdings %}
+                            {% for item in holdings %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td class="py-3">
+                                        <div class="fw-bold"><a href="{% url 'stock_detail' item.holding.stock.ticker %}" class="text-light text-decoration-none">{{ item.holding.stock.ticker }}</a></div>
+                                        <small class="text-muted">{{ item.holding.stock.name }}</small>
+                                    </td>
+                                    <td class="text-end fw-semibold">{{ item.holding.quantity|floatformat:2 }}</td>
+                                    <td class="text-end">₹{{ item.holding.buy_price|floatformat:2 }}</td>
+                                    <td class="text-end fw-semibold">₹{{ item.current_price|floatformat:2 }}</td>
+                                    <td class="text-end fw-bold text-light">₹{{ item.current_value|floatformat:2 }}</td>
+                                    <td class="text-end {% if item.gain_loss >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                        ₹{{ item.gain_loss|floatformat:2 }}
+                                        <span class="d-block small font-normal" style="font-size: 0.75rem; font-weight: normal;">
+                                            {% if item.gain_loss >= 0 %}+{% endif %}{{ item.gain_loss_pct|floatformat:2 }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.signal.signal == 'BUY' %}
+                                            <span class="badge-buy"><i class="bi bi-arrow-up-circle-fill me-1"></i> BUY</span>
+                                        {% elif item.signal.signal == 'SELL' %}
+                                            <span class="badge-sell"><i class="bi bi-arrow-down-circle-fill me-1"></i> SELL</span>
+                                        {% elif item.signal.signal == 'HOLD' %}
+                                            <span class="badge-hold"><i class="bi bi-pause-circle-fill me-1"></i> HOLD</span>
+                                        {% else %}
+                                            <span class="badge-watch"><i class="bi bi-eye-fill me-1"></i> WATCH</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{% url 'remove_holding' item.holding.id %}" onsubmit="return confirm('Are you sure you want to delete {{ item.holding.stock.ticker }} holding?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill"><i class="bi bi-trash-fill"></i> Remove</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted">
+                                    <i class="bi bi-wallet2 fs-1 d-block mb-3"></i>
+                                    No assets in your portfolio. Click "Add Asset" to record initial trades!
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Holding -->
+<div class="modal fade" id="addHoldingModal" tabindex="-1" aria-labelledby="addHoldingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-light" style="background-color: #111827; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;">
+            <div class="modal-header border-bottom border-light border-opacity-10">
+                <h5 class="modal-title fw-bold" id="addHoldingModalLabel"><i class="bi bi-plus-circle text-primary me-2"></i> Record Asset Holding</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'add_holding' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ticker" class="form-label">Ticker Symbol</label>
+                        <input type="text" name="ticker" class="form-control search-bar" id="ticker" placeholder="e.g. INFY.NS or AAPL" required autofocus>
+                        <small class="text-muted">Enter Yahoo Finance tickers (e.g. MSFT, Reliance.NS)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity</label>
+                        <input type="number" step="any" name="quantity" class="form-control search-bar" id="quantity" placeholder="Number of shares" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="buy_price" class="form-label">Buy Price (₹ / $)</label>
+                        <input type="number" step="any" name="buy_price" class="form-control search-bar" id="buy_price" placeholder="Cost per share" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="buy_date" class="form-label">Buy Date</label>
+                        <input type="date" name="buy_date" class="form-control search-bar" id="buy_date" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-light border-opacity-10">
+                    <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn search-btn rounded-pill px-4">Save Holding</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

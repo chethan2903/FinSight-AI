@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Financial Assistant - MarketMind AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold mb-1"><i class="bi bi-chat-left-text-fill text-primary"></i> AI Financial Assistant</h2>
+        <p class="text-secondary">RAG-powered conversational chatbot responding using live portfolio context and scraped financial headlines.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-10 mx-auto">
+        <div class="glass-card d-flex flex-column" style="height: 600px;">
+            <!-- Chat Window Header -->
+            <div class="p-3 border-bottom border-light border-opacity-10 bg-black bg-opacity-10 d-flex align-items-center justify-content-between rounded-top-4">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary">
+                        <i class="bi bi-robot fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 fw-bold">MarketMind Co-Pilot</h6>
+                        <small class="text-success"><i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Active Portfolio Context Index</small>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" id="clear-chat-btn"><i class="bi bi-trash"></i> Reset Chat</button>
+            </div>
+
+            <!-- Chat Message Feed -->
+            <div class="flex-grow-1 p-4" id="chat-messages-container" style="overflow-y: auto;">
+                <!-- Initial Bot Welcome Message -->
+                <div class="d-flex align-items-start gap-3 mb-4">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="p-3 rounded-4" style="background-color: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); max-width: 75%;">
+                        <p class="mb-0 text-light">
+                            Welcome! I am your MarketMind co-pilot. I have indexed your portfolio's latest prices, 
+                            recent analytical signals, and related financial news. 
+                            <br><br>
+                            How can I help you today? You can ask things like:
+                            <br>
+                            <em>"What is the total value of my holdings?"</em> or 
+                            <em>"Are there any sell warnings on my stocks?"</em> or 
+                            <em>"What are the latest news themes for Apple?"</em>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div class="px-4 py-2 d-none" id="typing-indicator">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="p-3 rounded-4 text-muted small" style="background-color: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03);">
+                        <span class="spinner-border spinner-border-sm me-2 text-primary" role="status"></span> Analyzing portfolio context index...
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Chat Entry Input -->
+            <div class="p-3 border-top border-light border-opacity-10 bg-black bg-opacity-5 rounded-bottom-4">
+                <form id="chat-input-form" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" id="user-question-input" class="form-control search-bar flex-grow-1" placeholder="Type your investment question here..." required>
+                    <button type="submit" class="btn search-btn rounded-pill px-4"><i class="bi bi-send-fill me-1"></i> Ask</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const form = document.getElementById("chat-input-form");
+    const container = document.getElementById("chat-messages-container");
+    const input = document.getElementById("user-question-input");
+    const typingIndicator = document.getElementById("typing-indicator");
+    const clearBtn = document.getElementById("clear-chat-btn");
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    form.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const question = input.value.trim();
+        if (!question) return;
+
+        // Append User Message to feed
+        appendMessage(question, true);
+        input.value = "";
+        
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+
+        // Show typing indicator
+        typingIndicator.classList.remove("d-none");
+        container.scrollTop = container.scrollHeight;
+
+        // AJAX POST Request
+        fetch("{% url 'assistant_chat' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrftoken
+            },
+            body: JSON.stringify({ question: question })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            typingIndicator.classList.add("d-none");
+            if (data.answer) {
+                appendMessage(data.answer, false);
+            } else if (data.error) {
+                appendMessage("Error: " + data.error, false, true);
+            }
+            container.scrollTop = container.scrollHeight;
+        })
+        .catch(err => {
+            typingIndicator.classList.add("d-none");
+            appendMessage("Sorry, I encountered an issue querying the index: " + err.message, false, true);
+            container.scrollTop = container.scrollHeight;
+        });
+    });
+
+    function appendMessage(text, isUser, isError = false) {
+        const bubbleBg = isUser ? "background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border: none;" : "background-color: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);";
+        const textClass = isError ? "text-danger" : "text-light";
+        
+        const bubbleHtml = isUser ? `
+          <div class="d-flex align-items-start gap-3 justify-content-end mb-4">
+              <div class="p-3 rounded-4 text-end" style="${bubbleBg} max-width: 75%;">
+                  <p class="mb-0 text-white text-start">${text}</p>
+              </div>
+              <div class="bg-indigo-600 bg-opacity-20 p-2 rounded-circle text-primary" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: rgba(99,102,241,0.15); flex-shrink: 0;">
+                  <i class="bi bi-person-fill"></i>
+              </div>
+          </div>
+        ` : `
+          <div class="d-flex align-items-start gap-3 mb-4">
+              <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i class="bi bi-robot"></i>
+              </div>
+              <div class="p-3 rounded-4" style="${bubbleBg} max-width: 75%;">
+                  <p class="mb-0 ${textClass}">${text}</p>
+              </div>
+          </div>
+        `;
+        
+        container.insertAdjacentHTML("beforeend", bubbleHtml);
+    }
+
+    clearBtn.addEventListener("click", function() {
+        container.innerHTML = `
+          <div class="d-flex align-items-start gap-3 mb-4">
+              <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary" style="width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i class="bi bi-robot"></i>
+              </div>
+              <div class="p-3 rounded-4" style="background-color: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); max-width: 75%;">
+                  <p class="mb-0 text-light">Chat history reset. How else can I assist with your portfolio analysis?</p>
+              </div>
+          </div>
+        `;
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MarketMind AI{% endblock %}</title>
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts: Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Plotly JS CDN -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 28, 45, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary-glow: #6366f1;
+            --accent-glow: #a855f7;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .navbar {
+            background: rgba(15, 23, 42, 0.8) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 15px 0;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-link {
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            padding: 8px 16px !important;
+            border-radius: 8px;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-primary) !important;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.2);
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-bar {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            border-radius: 12px;
+            padding: 8px 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-bar:focus {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: var(--primary-glow);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .search-btn {
+            background: var(--primary-glow);
+            border: none;
+            color: white;
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #4f46e5;
+        }
+
+        .footer {
+            border-top: 1px solid var(--card-border);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text-secondary);
+            padding: 30px 0;
+            margin-top: 60px;
+        }
+
+        /* Signal badges styling */
+        .badge-buy {
+            background-color: rgba(16, 185, 129, 0.15) !important;
+            color: var(--success-color) !important;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        .badge-sell {
+            background-color: rgba(239, 68, 68, 0.15) !important;
+            color: var(--danger-color) !important;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        .badge-hold {
+            background-color: rgba(245, 158, 11, 0.15) !important;
+            color: var(--warning-color) !important;
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        .badge-watch {
+            background-color: rgba(148, 163, 184, 0.15) !important;
+            color: var(--text-secondary) !important;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- Navigation Header -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'dashboard' %}">
+                <i class="bi bi-cpu-fill"></i> MarketMind AI
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}"><i class="bi bi-grid-1x2 me-1"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'portfolio_dashboard' %}active{% endif %}" href="{% url 'portfolio_dashboard' %}"><i class="bi bi-wallet2 me-1"></i> Portfolio</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'assistant_chat' %}active{% endif %}" href="{% url 'assistant_chat' %}"><i class="bi bi-chat-left-text me-1"></i> AI Assistant</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'alerts_config' %}active{% endif %}" href="{% url 'alerts_config' %}">
+                            <i class="bi bi-bell me-1"></i> Alerts
+                            <span id="alert-badge-count" class="badge rounded-pill bg-danger d-none" style="font-size: 0.7rem;">0</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Ticker Search form -->
+                <form class="d-flex me-3" method="GET" action="" id="search-ticker-form">
+                    <input class="form-control search-bar me-2" type="search" placeholder="Search Ticker (e.g. AAPL)" aria-label="Search" id="ticker-search-input" required>
+                    <button class="btn search-btn" type="submit"><i class="bi bi-search"></i></button>
+                </form>
+
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3 d-none d-lg-inline-block"><i class="bi bi-person-circle me-1"></i> {{ request.user.username }}</span>
+                    <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm rounded-pill"><i class="bi bi-box-arrow-right"></i> Sign Out</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div class="container min-vh-100">
+        {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show glass-card" role="alert" style="background: rgba(30, 41, 59, 0.85); color: #f8fafc;">
+                        <i class="bi bi-info-circle-fill me-2 text-primary"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="slide" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto">
+        <div class="container text-center">
+            <p class="mb-1">&copy; 2026 MarketMind AI Platform. All rights reserved.</p>
+            <small class="text-muted">Enterprise-grade Financial Intelligence Engine powered by Django 5.0, FinBERT, & LLaMA-3.1.</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Search Routing Script -->
+    <script>
+        document.getElementById("search-ticker-form").addEventListener("submit", function(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById("ticker-search-input").value.trim().toUpperCase();
+            if (inputVal) {
+                // Navigate to detail page. If stock does not exist, view will show 404, 
+                // but we can create it dynamically if we want. In our stock_detail view, 
+                // we'll try to find it or create if it's already added, but since we use get_object_or_404, 
+                // we can add a check or make it robust. Wait! What if we want search to automatically 
+                // resolve and add ticker if it doesn't exist? Yes, we can handle it by redirecting to a search view,
+                // or in stock_detail we can support fetching yfinance details if it's not in DB yet!
+                // Let's modify views.py stock_detail to create stock if not exists, which is extremely friendly!
+                // Let's write the routing location:
+                window.location.href = "/stock/" + inputVal + "/";
+            }
+        });
+    </script>
+
+    <!-- Active WebSocket client integration -->
+    <script src="{% static 'js/websocket.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - MarketMind AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold mb-1"><i class="bi bi-grid-1x2-fill text-primary"></i> Market Dashboard</h2>
+        <p class="text-secondary">Real-time stock sentiment indices and predictive investment analysis.</p>
+    </div>
+</div>
+
+<!-- Summary Cards Grid -->
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="text-muted text-uppercase fw-semibold mb-1">Portfolio Assets</h6>
+                    <h2 class="fw-bold mb-0">{{ holdings_count }}</h2>
+                </div>
+                <div class="bg-primary bg-opacity-10 p-3 rounded-3 text-primary">
+                    <i class="bi bi-wallet2 fs-3"></i>
+                </div>
+            </div>
+            <div class="mt-3">
+                <a href="{% url 'portfolio_dashboard' %}" class="text-primary text-decoration-none fw-medium small">
+                    Manage holdings <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="text-muted text-uppercase fw-semibold mb-1">Active Tickers</h6>
+                    <h2 class="fw-bold mb-0">{{ stocks_summary|length }}</h2>
+                </div>
+                <div class="bg-info bg-opacity-10 p-3 rounded-3 text-info">
+                    <i class="bi bi-graph-up-arrow fs-3"></i>
+                </div>
+            </div>
+            <div class="mt-3">
+                <span class="text-muted small">Tracking global indexes</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="glass-card p-4 h-100 position-relative overflow-hidden">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="text-muted text-uppercase fw-semibold mb-1">Alert Signals</h6>
+                    <h2 class="fw-bold mb-0" id="unread-count-text">{{ unread_notifications|length }}</h2>
+                </div>
+                <div class="bg-danger bg-opacity-10 p-3 rounded-3 text-danger">
+                    <i class="bi bi-bell-fill fs-3"></i>
+                </div>
+            </div>
+            <div class="mt-3">
+                <a href="{% url 'alerts_config' %}" class="text-danger text-decoration-none fw-medium small">
+                    Configure triggers <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Watchlist and System Stocks Table -->
+    <div class="col-lg-8">
+        <div class="glass-card p-4 h-100">
+            <h4 class="fw-bold mb-4"><i class="bi bi-star-fill text-warning me-2"></i> Market Watchlist</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-0 mb-0">
+                    <thead>
+                        <tr class="text-muted" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th class="pb-3">Stock Ticker</th>
+                            <th class="pb-3">Price</th>
+                            <th class="pb-3 text-center">AI Signal</th>
+                            <th class="pb-3 text-center">Trend Outlook</th>
+                            <th class="pb-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if stocks_summary %}
+                            {% for item in stocks_summary %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td class="py-3">
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <h6 class="mb-0 fw-bold">{{ item.stock.ticker }}</h6>
+                                                <small class="text-muted d-block" style="max-width: 180px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">
+                                                    {{ item.stock.name }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if item.price %}
+                                            <span class="fw-semibold">₹{{ item.price|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.signal == 'BUY' %}
+                                            <span class="badge-buy"><i class="bi bi-arrow-up-circle-fill me-1"></i> BUY</span>
+                                        {% elif item.signal == 'SELL' %}
+                                            <span class="badge-sell"><i class="bi bi-arrow-down-circle-fill me-1"></i> SELL</span>
+                                        {% elif item.signal == 'HOLD' %}
+                                            <span class="badge-hold"><i class="bi bi-pause-circle-fill me-1"></i> HOLD</span>
+                                        <!-- WATCH/default -->
+                                        {% else %}
+                                            <span class="badge-watch"><i class="bi bi-eye-fill me-1"></i> WATCH</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.trend == 'UPWARD' %}
+                                            <span class="text-success"><i class="bi bi-graph-up me-1"></i> Upward</span>
+                                        {% elif item.trend == 'DOWNWARD' %}
+                                            <span class="text-danger"><i class="bi bi-graph-down me-1"></i> Downward</span>
+                                        {% else %}
+                                            <span class="text-muted"><i class="bi bi-arrow-right-left me-1"></i> Sideways</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'stock_detail' item.stock.ticker %}" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+                                            <i class="bi bi-bar-chart-line-fill me-1"></i> Detail
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                    No stocks tracked in database. Use search to load a ticker!
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Notifications Feed -->
+    <div class="col-lg-4">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h4 class="fw-bold mb-0"><i class="bi bi-bell-fill text-danger me-2"></i> Real-time Alerts</h4>
+                {% if unread_notifications %}
+                    <a href="{% url 'mark_notifications_read' %}" class="btn btn-link text-primary text-decoration-none p-0 small">
+                        Mark all read
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="alert-feed" style="max-height: 400px; overflow-y: auto;">
+                {% if unread_notifications %}
+                    {% for notification in unread_notifications %}
+                        <div class="alert-item p-3 mb-3 rounded-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease;">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge {% if 'drop' in notification.message|lower or 'sell' in notification.message|lower %}bg-danger bg-opacity-25 text-danger{% else %}bg-warning bg-opacity-25 text-warning{% endif %} rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                    {{ notification.rule.stock.ticker }}
+                                </span>
+                                <small class="text-muted">{{ notification.triggered_at|date:"H:i" }}</small>
+                            </div>
+                            <p class="mb-0 small text-light">{{ notification.message }}</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-bell-slash fs-1 d-block mb-3"></i>
+                        No new alert triggers detected.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}Alert Settings - MarketMind AI{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold mb-1"><i class="bi bi-bell-fill text-primary"></i> Alert Rule Configuration</h2>
+        <p class="text-secondary">Set real-time threshold monitors for sentiment swings, volume anomalies, or signal shifts.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Active Rules Form and List -->
+    <div class="col-lg-7">
+        <!-- Create Rule Card -->
+        <div class="glass-card p-4 mb-4">
+            <h4 class="fw-bold mb-3"><i class="bi bi-plus-square text-primary me-2"></i> Create Monitoring Rule</h4>
+            <form method="POST" action="{% url 'create_alert' %}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="stock" class="form-label">Select Stock</label>
+                        <select name="stock" class="form-select search-bar w-100" id="stock" required style="height: 46px;">
+                            <option value="" disabled selected>Choose stock...</option>
+                            {% for stock in stocks %}
+                                <option value="{{ stock.id }}">{{ stock.ticker }} - {{ stock.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="alert_type" class="form-label">Alert Trigger Type</label>
+                        <select name="alert_type" class="form-select search-bar w-100" id="alert_type" required style="height: 46px;">
+                            <option value="" disabled selected>Choose trigger...</option>
+                            {% for code, label in alert_types %}
+                                <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label for="threshold_value" class="form-label">Trigger Threshold Value</label>
+                        <input type="number" step="any" name="threshold_value" class="form-control search-bar" id="threshold_value" placeholder="e.g. 5.0 for 5% move, -0.3 for sentiment drop" required>
+                        <small class="text-secondary mt-1 d-block" id="threshold-hint-text">
+                            Enter threshold value based on target selection.
+                        </small>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn search-btn rounded-pill w-100 py-2"><i class="bi bi-bell-plus"></i> Set Alert</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Active Rules List -->
+        <div class="glass-card p-4">
+            <h4 class="fw-bold mb-4"><i class="bi bi-sliders text-info me-2"></i> Active Alert Rules</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-0 mb-0">
+                    <thead>
+                        <tr class="text-muted" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th class="pb-3">Stock</th>
+                            <th class="pb-3">Trigger Metric</th>
+                            <th class="pb-3 text-end">Threshold</th>
+                            <th class="pb-3 text-center">Status</th>
+                            <th class="pb-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if rules %}
+                            {% for rule in rules %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td class="py-3">
+                                        <div class="fw-bold">{{ rule.stock.ticker }}</div>
+                                        <small class="text-muted">{{ rule.stock.name }}</small>
+                                    </td>
+                                    <td>
+                                        {% if rule.alert_type == 'SENTIMENT_DROP' %}
+                                            Sentiment Score Drop
+                                        {% elif rule.alert_type == 'PRICE_MOVE' %}
+                                            Price Movement %
+                                        {% elif rule.alert_type == 'VOLUME_SPIKE' %}
+                                            Volume Spike (x average)
+                                        {% elif rule.alert_type == 'SIGNAL_CHANGE' %}
+                                            Market Signal Change
+                                        {% else %}
+                                            {{ rule.alert_type }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-semibold">
+                                        {% if rule.alert_type == 'PRICE_MOVE' %}{{ rule.threshold_value }}%
+                                        {% elif rule.alert_type == 'VOLUME_SPIKE' %}{{ rule.threshold_value }}x
+                                        {% else %}{{ rule.threshold_value }}{% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+                                            MONITORING
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'delete_alert' rule.id %}" class="btn btn-outline-danger btn-sm rounded-pill"><i class="bi bi-trash"></i> Delete</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    No active thresholds configured. Select assets above to begin.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historical Logs Feed -->
+    <div class="col-lg-5">
+        <div class="glass-card p-4">
+            <h4 class="fw-bold mb-4"><i class="bi bi-clock-history text-danger me-2"></i> Triggered Notifications</h4>
+            
+            <div class="notification-log-feed" style="max-height: 520px; overflow-y: auto;">
+                {% if notifications %}
+                    {% for item in notifications %}
+                        <div class="p-3 mb-3 rounded-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-danger bg-opacity-20 text-danger rounded-pill px-2 py-1" style="font-size: 0.75rem;">
+                                    {{ item.rule.stock.ticker }}
+                                </span>
+                                <small class="text-muted">{{ item.triggered_at|date:"M d, H:i" }}</small>
+                            </div>
+                            <p class="mb-0 small text-light">{{ item.message }}</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-chat-square-dots fs-1 d-block mb-3"></i>
+                        No alerts have triggered yet. Watchlist updates occur every 15 minutes.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dinamically show hint details based on trigger type selection
+    const typeSelect = document.getElementById("alert_type");
+    const hint = document.getElementById("threshold-hint-text");
+
+    typeSelect.addEventListener("change", function() {
+        const val = typeSelect.value;
+        if (val === "SENTIMENT_DROP") {
+            hint.innerHTML = "Sentiment score falls below target threshold (FinBERT range -1.0 to +1.0. Recommendation threshold: -0.35).";
+        } else if (val === "PRICE_MOVE") {
+            hint.innerHTML = "Stock price fluctuates up or down by this percentage value (e.g. 3.0 for a 3% change).";
+        } else if (val === "VOLUME_SPIKE") {
+            hint.innerHTML = "Traded volume exceeds standard rolling volumes by multiple factor (e.g. 2.0 to trigger at 2x 7d average).";
+        } else if (val === "SIGNAL_CHANGE") {
+            hint.innerHTML = "Triggers alert whenever buy/sell/hold outlook labels toggle (set threshold to 0).";
+        }
+    });
+</script>
+{% endblock %}

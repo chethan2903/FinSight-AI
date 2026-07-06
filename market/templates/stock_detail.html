@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stock.ticker }} - Details - MarketMind AI{% endblock %}
+
+{% block content %}
+<!-- Ticker Header -->
+<div class="row align-items-center mb-4 g-3">
+    <div class="col-md-8">
+        <div class="d-flex align-items-center gap-3">
+            <h1 class="fw-bold mb-0">{{ stock.ticker }}</h1>
+            <span class="fs-4 text-muted border-start ps-3">{{ stock.name }}</span>
+        </div>
+        <div class="mt-2 text-secondary">
+            <span class="badge bg-secondary me-2"><i class="bi bi-tag"></i> {{ stock.sector|default:"N/A" }}</span>
+            <span class="badge bg-dark"><i class="bi bi-globe"></i> {{ stock.exchange|default:"N/A" }}</span>
+        </div>
+    </div>
+    <div class="col-md-4 text-md-end">
+        <div class="d-inline-block p-3 rounded-4 glass-card text-start">
+            <div class="small text-secondary">LATEST CLOSING PRICE</div>
+            <div class="fs-2 fw-bold text-light">₹{{ price_data.close_price|floatformat:2 }}</div>
+            <div class="small {% if indicators.price_change_pct >= 0 %}text-success{% else class %}text-danger{% endif %} fw-semibold">
+                <i class="bi {% if indicators.price_change_pct >= 0 %}bi-caret-up-fill{% else %}bi-caret-down-fill{% endif %}"></i>
+                {{ indicators.price_change_pct|floatformat:2 }}% <span class="text-secondary fw-normal">(7d)</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <!-- Chart Column -->
+    <div class="col-lg-8">
+        <div class="glass-card p-4 mb-4">
+            <div id="price-chart" style="height: 400px; width: 100%;"></div>
+        </div>
+
+        <!-- Analytical Insights (LLM Reasoning) -->
+        <div class="glass-card p-4">
+            <h4 class="fw-bold mb-3 text-light"><i class="bi bi-cpu-fill text-primary me-2"></i> MarketMind AI Assessment</h4>
+            <div class="mb-4">
+                <p class="lead text-light">{{ signal.reasoning }}</p>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.04);">
+                        <h6 class="text-success fw-bold"><i class="bi bi-check-circle-fill me-2"></i> Key Factors</h6>
+                        <ul class="mb-0 text-secondary" style="font-size: 0.95rem;">
+                            {% for factor in signal.shap_factors %}
+                                {% if factor.direction == 'positive' %}
+                                    <li class="mb-2">{{ factor.factor }} is positively driving the outlook.</li>
+                                {% endif %}
+                            {% endfor %}
+                            <li class="mb-2">Moving Average momentum supports this view.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.04);">
+                        <h6 class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Risk Elements</h6>
+                        <ul class="mb-0 text-secondary" style="font-size: 0.95rem;">
+                            {% for factor in signal.shap_factors %}
+                                {% if factor.direction == 'negative' %}
+                                    <li class="mb-2">{{ factor.factor }} presents a downward headwind.</li>
+                                {% endif %}
+                            {% endfor %}
+                            <li class="mb-2">General market risk and macro indicators could disrupt target levels.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical and Signals Panel -->
+    <div class="col-lg-4">
+        <!-- AI Signal Card -->
+        <div class="glass-card p-4 mb-4 text-center">
+            <h5 class="text-secondary fw-semibold mb-3">AI Recommendation</h5>
+            <div class="mb-3">
+                {% if signal.signal == 'BUY' %}
+                    <span class="fs-1 fw-bold badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-4 py-2 rounded-4">BUY</span>
+                {% elif signal.signal == 'SELL' %}
+                    <span class="fs-1 fw-bold badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-4 py-2 rounded-4">SELL</span>
+                {% elif signal.signal == 'HOLD' %}
+                    <span class="fs-1 fw-bold badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-4 py-2 rounded-4">HOLD</span>
+                {% else %}
+                    <span class="fs-1 fw-bold badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-4 py-2 rounded-4">WATCH</span>
+                {% endif %}
+            </div>
+            <div class="small text-secondary mb-4">
+                Confidence Level: <strong class="text-light">{{ signal.confidence|dictsort:"confidence" }}{{ signal.confidence|percentof:1.0|floatformat:0 }}%</strong>
+            </div>
+            
+            <div class="d-flex justify-content-around py-3 border-top border-opacity-10 border-light">
+                <div>
+                    <div class="small text-secondary">24H SENTIMENT</div>
+                    <div class="fw-bold {% if signal.sentiment_score >= 0.2 %}text-success{% elif signal.sentiment_score <= -0.2 %}text-danger{% else %}text-warning{% endif %}">
+                        {{ signal.sentiment_score|floatformat:2 }}
+                    </div>
+                </div>
+                <div class="border-start border-opacity-10 border-light"></div>
+                <div>
+                    <div class="small text-secondary">TREND OUTLOOK</div>
+                    <div class="fw-bold text-light">
+                        {{ signal.price_trend }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Indicators List -->
+        <div class="glass-card p-4 mb-4">
+            <h5 class="fw-bold mb-3">Technical Indicators</h5>
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">RSI (14-day)</span>
+                    <span class="fw-semibold {% if indicators.rsi > 70 %}text-danger{% elif indicators.rsi < 30 %}text-success{% else %}text-light{% endif %}">
+                        {{ indicators.rsi|floatformat:1 }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">7-day Moving Avg</span>
+                    <span class="fw-semibold text-light">₹{{ indicators.ma7|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">21-day Moving Avg</span>
+                    <span class="fw-semibold text-light">₹{{ indicators.ma21|floatformat:2 }}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-secondary">Volume Trend (Ratio)</span>
+                    <span class="fw-semibold text-light">{{ indicators.volume_ratio|floatformat:2 }}x</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SHAP Plotly Panel -->
+        <div class="glass-card p-4">
+            <div id="shap-chart" style="height: 250px; width: 100%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- News Sentiment Details Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="glass-card p-4">
+            <h4 class="fw-bold mb-4"><i class="bi bi-newspaper text-info me-2"></i> News Articles & Classification Logs</h4>
+            
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle border-0 mb-0">
+                    <thead>
+                        <tr class="text-muted" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <th class="pb-3" style="width: 40%;">Article Title & Source</th>
+                            <th class="pb-3 text-center">FinBERT</th>
+                            <th class="pb-3 text-center">DistilRoBERTa</th>
+                            <th class="pb-3 text-center">Ensemble Score</th>
+                            <th class="pb-3 text-center">Published</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if news_list %}
+                            {% for item in news_list %}
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                                    <td class="py-3">
+                                        <a href="{{ item.article.url }}" target="_blank" class="text-light text-decoration-none fw-bold d-block mb-1 hover-underline">
+                                            {{ item.article.title }}
+                                        </a>
+                                        <small class="text-secondary"><i class="bi bi-journal-text me-1"></i> {{ item.article.source }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.sentiment %}
+                                            <span class="badge {% if item.sentiment.finbert_label == 'positive' %}bg-success{% elif item.sentiment.finbert_label == 'negative' %}bg-danger{% else %}bg-secondary{% endif %} bg-opacity-25 {% if item.sentiment.finbert_label == 'positive' %}text-success{% elif item.sentiment.finbert_label == 'negative' %}text-danger{% else %}text-secondary{% endif %} py-2 px-3 rounded-3">
+                                                {{ item.sentiment.finbert_label|upper }} ({{ item.sentiment.finbert_score|floatformat:2 }})
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.sentiment %}
+                                            <span class="badge {% if item.sentiment.roberta_label == 'positive' %}bg-success{% elif item.sentiment.roberta_label == 'negative' %}bg-danger{% else %}bg-secondary{% endif %} bg-opacity-25 {% if item.sentiment.roberta_label == 'positive' %}text-success{% elif item.sentiment.roberta_label == 'negative' %}text-danger{% else %}text-secondary{% endif %} py-2 px-3 rounded-3">
+                                                {{ item.sentiment.roberta_label|upper }} ({{ item.sentiment.roberta_score|floatformat:2 }})
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.sentiment %}
+                                            <span class="fw-bold {% if item.sentiment.ensemble_score >= 0.15 %}text-success{% elif item.sentiment.ensemble_score <= -0.15 %}text-danger{% else %}text-warning{% endif %}">
+                                                {{ item.sentiment.ensemble_score|stringformat:".2f" }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center text-muted small">
+                                        {{ item.article.published_at|date:"M d, Y" }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-newspaper fs-1 d-block mb-3"></i>
+                                    No news articles found in the database.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dual axis Historical Price + Volume Chart
+    const priceData = {{ price_chart_json|safe }};
+    
+    if (priceData.timestamps && priceData.timestamps.length > 0) {
+        const priceTrace = {
+            x: priceData.timestamps,
+            y: priceData.prices,
+            type: 'scatter',
+            mode: 'lines+markers',
+            name: 'Price (₹)',
+            line: { color: '#6366f1', width: 3 },
+            marker: { color: '#818cf8', size: 5 }
+        };
+
+        const volumeTrace = {
+            x: priceData.timestamps,
+            y: priceData.volumes,
+            type: 'bar',
+            name: 'Volume',
+            yaxis: 'y2',
+            marker: { color: 'rgba(168, 85, 247, 0.15)' }
+        };
+
+        const priceLayout = {
+            title: {
+                text: 'Historical Price & Volume Action',
+                font: { size: 16 }
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#f8fafc', family: 'Outfit' },
+            xaxis: { 
+                gridcolor: 'rgba(255,255,255,0.05)',
+                tickfont: { size: 10 }
+            },
+            yaxis: { 
+                title: 'Price (₹)', 
+                gridcolor: 'rgba(255,255,255,0.05)',
+                tickfont: { size: 10 }
+            },
+            yaxis2: { 
+                title: 'Volume', 
+                overlaying: 'y', 
+                side: 'right', 
+                showgrid: false,
+                tickfont: { size: 10 }
+            },
+            legend: { orientation: 'h', y: -0.15, x: 0.3 },
+            margin: { l: 50, r: 50, t: 50, b: 50 }
+        };
+
+        Plotly.newPlot('price-chart', [priceTrace, volumeTrace], priceLayout, {responsive: true, displayModeBar: false});
+    } else {
+        document.getElementById('price-chart').innerHTML = `
+            <div class="d-flex h-100 align-items-center justify-content-center text-muted flex-column">
+                <i class="bi bi-bar-chart fs-1 mb-2"></i>
+                No historical prices stored to chart yet.
+            </div>
+        `;
+    }
+
+    // Horizontal SHAP attribution weight chart
+    const shapData = [
+        {% for factor in shap_factors %}
+            {
+                factor: "{{ factor.factor }}",
+                weight: {{ factor.weight }},
+                direction: "{{ factor.direction }}"
+            },
+        {% endfor %}
+    ];
+
+    if (shapData.length > 0) {
+        const yLabels = shapData.map(d => d.factor).reverse();
+        const xWeights = shapData.map(d => d.weight).reverse();
+        const colors = shapData.map(d => d.direction === 'positive' ? '#10b981' : '#ef4444').reverse();
+
+        const shapTrace = {
+            x: xWeights,
+            y: yLabels,
+            type: 'bar',
+            orientation: 'h',
+            marker: {
+                color: colors,
+                width: 0.5
+            }
+        };
+
+        const shapLayout = {
+            title: {
+                text: 'AI Model Decision Attribution (SHAP)',
+                font: { size: 14 }
+            },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: { color: '#f8fafc', family: 'Outfit' },
+            xaxis: { 
+                title: 'Relative Attribution Weight',
+                gridcolor: 'rgba(255,255,255,0.05)',
+                tickfont: { size: 10 }
+            },
+            yaxis: { 
+                tickfont: { size: 10 }
+            },
+            margin: { l: 120, r: 20, t: 40, b: 40 }
+        };
+
+        Plotly.newPlot('shap-chart', [shapTrace], shapLayout, {responsive: true, displayModeBar: false});
+    } else {
+        document.getElementById('shap-chart').innerHTML = `
+            <div class="text-center text-muted">No signal drivers available.</div>
+        `;
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+Django>=5.0,<5.1
+daphne
+channels>=4.0.0
+channels-redis>=4.0.0
+celery>=5.3.0
+redis>=5.0.0
+yfinance
+feedparser
+transformers
+torch --extra-index-url https://download.pytorch.org/whl/cpu
+sentence-transformers
+faiss-cpu
+groq
+pandas
+numpy
+requests
+python-dotenv
